@@ -1,9 +1,9 @@
 #include "raytracing.h"
 
-#define WINDOW_HEIGHT 500
-#define WINDOW_WIDTH 500
+#define WINDOW_HEIGHT 600
+#define WINDOW_WIDTH 800
 
-t_point point(double x, double y, double z)
+t_point Point(double x, double y, double z)
 {
 	t_point p;
 
@@ -44,67 +44,85 @@ double cos_vec(t_point a, t_point b)
 	return (-InnerProduct(a, b) / (sqrt(InnerProduct(a, a) * (InnerProduct(b, b)))));
 }
 
+int close(int keycode, t_vars *vars)
+{
+	if (keycode == 53)
+	{
+		mlx_destroy_window(vars->mlx, vars->win);
+		exit(0);
+	}
+	return (0);
+}
+
 int main(void)
 {
 	t_vars vars;
 	init_vars(&vars);
 
-	t_point Pv = point(0, 0, 2000);
-	t_point Pc = point(0, 0, -1000);
-	t_point PL = point(-20000, -20000, 20000);
-	double R = 200;
+	t_point Pv = Point(0, 0, 2000);
+	t_point PL = Point(20000, -20000, 20000);
+	t_point Pc[2] = {Point(50, -50, -1000), Point(-200, 200, -1700)};
+	double R[2] = {200, 200};
 
-	double A, B2, C, D;
-	t_point Pvc = point(Pv.x - Pc.x, Pv.y - Pc.y, Pv.z - Pc.z);
-
-	t_point v;
 	for (int i = 0; i < WINDOW_WIDTH; i++)
 	{
 		for (int j = 0; j < WINDOW_HEIGHT; j++)
 		{
-			v.x = i - WINDOW_WIDTH / 2 + 0.5 - Pv.x;
-			v.y = j - WINDOW_HEIGHT / 2 + 0.5 - Pv.y;
-			v.z = -Pv.z;
+			t_point v = Point(i - WINDOW_WIDTH / 2 + 0.5 - Pv.x, j - WINDOW_HEIGHT / 2 + 0.5 - Pv.y, -Pv.z);
 
-			A = InnerProduct(v, v);
-			B2 = InnerProduct(Pvc, v);
-			C = InnerProduct(Pvc, Pvc) - R * R;
-			D = B2 * B2 - A * C;
-
-			double t0 = (-B2 - sqrt(D)) / A;
-			t_point P = point(Pv.x + v.x * t0, Pv.y + v.y * t0, Pv.z + v.z * t0);
-			t_point N = point(P.x - Pc.x, P.y - Pc.y, P.z - Pc.z);
-			t_point vL = point(P.x - PL.x, P.y - PL.y, P.z - PL.z);
-
-			double cosA = cos_vec(vL, N);
-
-			double w = -InnerProduct(vL, N) / InnerProduct(N, N);
-			t_point vR = point(2 * w * N.x, 2 * w * N.y, 2 * w * N.z);
-			double cosG = cos_vec(vR, v) < 0 ? 0 : cos_vec(vR, v);
-			cosG = pow(cosG, 20);
-
-			double Kd = 1.0, Ks = 0.7, Ie = 0.1, I = 255;
-			double RGB[3] = {255, 0, 0}, color_val[3];
-
-			if (D >= 0)
+			double t0;
+			int s0 = -1;
+			for (int s = 0; s < 2; s++)
 			{
+				t_point Pvc = Point(Pv.x - Pc[s].x, Pv.y - Pc[s].y, Pv.z - Pc[s].z);
+				double A = InnerProduct(v, v);
+				double B2 = InnerProduct(Pvc, v);
+				double C = InnerProduct(Pvc, Pvc) - R[s] * R[s];
+				double D = B2 * B2 - A * C;
+				if (D >= 0)
+				{
+					double t = (-B2 - sqrt(D)) / A;
+					if (s0 < 0 || t < t0)
+					{
+						s0 = s;
+						t0 = t;
+					}
+				}
+			}
+
+			if (s0 >= 0)
+			{
+				t_point P = Point(Pv.x + v.x * t0, Pv.y + v.y * t0, Pv.z + v.z * t0);
+				t_point N = Point(P.x - Pc[s0].x, P.y - Pc[s0].y, P.z - Pc[s0].z);
+				t_point vL = Point(P.x - PL.x, P.y - PL.y, P.z - PL.z);
+				
+				double cosA = cos_vec(vL, N);
+
+				double w = -InnerProduct(vL, N) / InnerProduct(N, N);
+				t_point vR = Point(2 * w * N.x + vL.x, 2 * w * N.y + vL.y, 2 * w * N.z + vL.z);
+				double cosG = pow(cos_vec(vR, v) < 0 ? 0 : cos_vec(vR, v), 15);
+
+				double Kd = 1.0, Ks = 0.7, Ie = 0.1, I = 255;
+
+				int color_val[3];
+				int RGB[2][3] = {{255, 0, 0}, {0, 255, 0}};
 				for (int k = 0; k < 3; k++)
 				{
-					color_val[k] = RGB[k] * Kd * cosA;
-					if (color_val[k] < I * Ks * cosG) color_val[k] = I * Ks * cosG;
-					if (color_val[k] < RGB[k] * Ie) color_val[k] = RGB[k] * Ie;
+					color_val[k] = RGB[s0][k] * Kd * cosA;
+					if (color_val[k] < I * Ks * cosG)
+						color_val[k] = I * Ks * cosG;
+					if (color_val[k] < RGB[s0][k] * Ie)
+						color_val[k] = RGB[s0][k] * Ie;
+					draw_pixel(&vars.data, i, j, color(color_val[0], color_val[1], color_val[2]));
 				}
-				// if (cosA >= 0)
-				draw_pixel(&vars.data, i, j, color(color_val[0], color_val[1], color_val[2]));
-				// else
-				// 	draw_pixel(&vars.data, i, j, color(0, 0, 0));
 			}
 			else
 			{
-				draw_pixel(&vars.data, i, j, color(0, 0, 127));
+				draw_pixel(&vars.data, i, j, color(0, 0, 0));
 			}
 		}
 	}
 	mlx_put_image_to_window(vars.mlx, vars.win, vars.data.img, 0, 0);
+	mlx_hook(vars.win, 2, 1L<<0, &close, &vars);
 	mlx_loop(vars.mlx);
 }
