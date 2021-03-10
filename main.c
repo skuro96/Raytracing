@@ -60,8 +60,8 @@ int main(void)
 	init_vars(&vars);
 
 	t_point Pv = Point(0, 0, 2000);
-	t_point PL = Point(20000, -20000, 20000);
-	t_point Pc[2] = {Point(50, -50, -1000), Point(-200, 200, -1700)};
+	t_point PL = Point(-20000, 20000, 20000);
+	t_point Pc[2] = {Point(-50, 50, -1000), Point(200, -200, -1700)};
 	double R[2] = {200, 200};
 
 	for (int i = 0; i < WINDOW_WIDTH; i++)
@@ -96,11 +96,35 @@ int main(void)
 				t_point N = Point(P.x - Pc[s0].x, P.y - Pc[s0].y, P.z - Pc[s0].z);
 				t_point vL = Point(P.x - PL.x, P.y - PL.y, P.z - PL.z);
 				
-				double cosA = cos_vec(vL, N);
+				int s;
+				for (s = 0; s < 2; s++)
+				{
+					if (s == s0)
+						continue ;
+					t_point v1 = Point(PL.x - P.x, PL.y - P.y, PL.z - P.z);
+					t_point Pvc1 = Point(P.x - Pc[s].x, P.y - Pc[s].y, P.z - Pc[s].z);
+					double A = InnerProduct(v1, v1);
+					double B2 = InnerProduct(Pvc1, v1);
+					double C = InnerProduct(Pvc1, Pvc1) - R[s] * R[s];
+					double D = B2 * B2 - A * C;
+					if (D >= 0 && (-B2 - sqrt(D)) / A > 0)
+						break ;
+				}
 
-				double w = -InnerProduct(vL, N) / InnerProduct(N, N);
-				t_point vR = Point(2 * w * N.x + vL.x, 2 * w * N.y + vL.y, 2 * w * N.z + vL.z);
-				double cosG = pow(cos_vec(vR, v) < 0 ? 0 : cos_vec(vR, v), 15);
+				double cosA, cosG;
+				if (s < 2)
+				{
+					cosA = 0;
+					cosG = 0;
+				}
+				else
+				{
+					cosA = cos_vec(vL, N);
+
+					double w = -InnerProduct(vL, N) / InnerProduct(N, N);
+					t_point vR = Point(2 * w * N.x + vL.x, 2 * w * N.y + vL.y, 2 * w * N.z + vL.z);
+					cosG = pow(cos_vec(vR, v) < 0 ? 0 : cos_vec(vR, v), 15);
+				}
 
 				double Kd = 1.0, Ks = 0.7, Ie = 0.1, I = 255;
 
@@ -113,12 +137,12 @@ int main(void)
 						color_val[k] = I * Ks * cosG;
 					if (color_val[k] < RGB[s0][k] * Ie)
 						color_val[k] = RGB[s0][k] * Ie;
-					draw_pixel(&vars.data, i, j, color(color_val[0], color_val[1], color_val[2]));
+					draw_pixel(&vars.data, i, WINDOW_HEIGHT - 1 - j, color(color_val[0], color_val[1], color_val[2]));
 				}
 			}
 			else
 			{
-				draw_pixel(&vars.data, i, j, color(0, 0, 0));
+				draw_pixel(&vars.data, i, WINDOW_HEIGHT - 1 - j, color(0, 0, 0));
 			}
 		}
 	}
